@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#14141A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Planner">
+<link rel="manifest" href="./manifest.json">
+<title>Expense Planner</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #14141A;
+    --surface: #1E1E27;
+    --surface2: #26262F;
+    --border: #2E2E3A;
+    --gold: #C9A84C;
+    --gold-dim: rgba(201,168,76,0.12);
+    --gold-mid: rgba(201,168,76,0.35);
+    --text: #E8E5DC;
+    --text-dim: #8A8793;
+    --text-faint: #4A4856;
+    --green: #6DB888;
+    --green-dim: rgba(109,184,136,0.12);
+    --green-mid: rgba(109,184,136,0.3);
+    --red: #E07575;
+    --blue: #7EB8D4;
+    --blue-dim: rgba(126,184,212,0.12);
+    --blue-mid: rgba(126,184,212,0.3);
+    --purple: #A88FD4;
+    --purple-dim: rgba(168,143,212,0.12);
+    --purple-mid: rgba(168,143,212,0.3);
+    --radius: 10px;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0 0 80px;
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* ── SETUP OVERLAY ─────────────────────────────── */
+  #setup-overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  #setup-overlay.hidden { display: none; }
+
+  .setup-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px 28px;
+    max-width: 480px; width: 100%;
+  }
+  .setup-card h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.6rem; font-weight: 400;
+    color: var(--gold); margin-bottom: 8px;
+  }
+  .setup-card p {
+    font-size: 0.85rem; color: var(--text-dim);
+    line-height: 1.6; margin-bottom: 20px;
+  }
+  .setup-step {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    font-size: 0.82rem;
+    line-height: 1.7;
+    color: var(--text-dim);
+  }
+  .setup-step strong { color: var(--text); }
+  .setup-step a { color: var(--gold); text-decoration: none; }
+  .setup-step code {
+    font-family: 'DM Mono', monospace;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 4px; padding: 1px 6px;
+    font-size: 0.8rem; color: var(--gold);
+  }
+  .setup-step .step-num {
+    display: inline-block;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--gold-dim); border: 1px solid var(--gold-mid);
+    color: var(--gold); font-size: 0.7rem; font-weight: 600;
+    text-align: center; line-height: 20px;
+    margin-right: 8px; flex-shrink: 0;
+  }
+
+  .setup-input-row { display: flex; gap: 10px; margin-top: 20px; }
+  .setup-input {
+    flex: 1;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 11px 14px;
+    color: var(--text); font-family: 'DM Sans', sans-serif;
+    font-size: 0.88rem; outline: none;
+    transition: border-color 0.2s;
+  }
+  .setup-input:focus { border-color: var(--gold-mid); }
+  .setup-input::placeholder { color: var(--text-faint); }
+
+  .btn-setup {
+    background: var(--gold); color: #14141A;
+    border: none; border-radius: 8px;
+    padding: 0 20px; height: 44px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem; font-weight: 600;
+    cursor: pointer; white-space: nowrap;
+    transition: opacity 0.2s;
+  }
+  .btn-setup:hover { opacity: 0.85; }
+  .btn-setup:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .setup-error {
+    margin-top: 12px; padding: 10px 14px;
+    background: rgba(224,117,117,0.1);
+    border: 1px solid rgba(224,117,117,0.3);
+    border-radius: 7px;
+    font-size: 0.8rem; color: var(--red);
+    display: none;
+  }
+
+  /* ── SYNC BAR ──────────────────────────────────── */
+  #sync-bar {
+    position: fixed; top: env(safe-area-inset-top); left: 0; right: 0;
+    height: 44px; z-index: 50;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center;
+    padding: 0 16px; gap: 10px;
+  }
+
+  .sync-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1rem; color: var(--gold);
+    flex: 1;
+  }
+
+  .sync-status {
+    font-size: 0.7rem; color: var(--text-faint);
+    font-family: 'DM Mono', monospace;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .sync-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--text-faint); flex-shrink: 0;
+    transition: background 0.3s;
+  }
+  .sync-dot.saving { background: var(--gold); animation: pulse 1s infinite; }
+  .sync-dot.saved  { background: var(--green); }
+  .sync-dot.error  { background: var(--red); }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .btn-settings {
+    background: none; border: none;
+    color: var(--text-faint); cursor: pointer;
+    font-size: 1.1rem; padding: 4px;
+    transition: color 0.2s; line-height: 1;
+  }
+  .btn-settings:hover { color: var(--text-dim); }
+
+  /* ── MAIN CONTENT ──────────────────────────────── */
+  .main-wrap {
+    padding: 60px 16px 0;
+    max-width: 760px; margin: 0 auto;
+  }
+
+  header { text-align: center; margin: 24px 0 28px; }
+  header h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 2rem; font-weight: 400;
+    color: var(--gold); letter-spacing: 0.01em; margin-bottom: 4px;
+  }
+  header p {
+    color: var(--text-dim); font-size: 0.78rem; font-weight: 300;
+    letter-spacing: 0.06em; text-transform: uppercase;
+  }
+
+  .tabs {
+    display: flex; gap: 2px;
+    background: var(--surface);
+    border-radius: var(--radius); padding: 4px;
+    margin-bottom: 24px;
+  }
+  .tab-btn {
+    flex: 1; padding: 10px 12px;
+    background: transparent; border: none; border-radius: 7px;
+    color: var(--text-dim); font-family: 'DM Sans', sans-serif;
+    font-size: 0.8rem; font-weight: 500; letter-spacing: 0.04em;
+    cursor: pointer; transition: all 0.2s; text-transform: uppercase;
+  }
+  .tab-btn.active { background: var(--gold-dim); color: var(--gold); border: 1px solid var(--gold-mid); }
+  .tab-btn:hover:not(.active) { color: var(--text); background: var(--surface2); }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px; margin-bottom: 20px;
+  }
+
+  /* ── FORM ──────────────────────────────────────── */
+  .add-form { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+  .field { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 110px; }
+  .field label {
+    font-size: 0.68rem; font-weight: 600; letter-spacing: 0.09em;
+    text-transform: uppercase; color: var(--text-dim);
+  }
+  .field input, .field select {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 7px; padding: 9px 12px; color: var(--text);
+    font-family: 'DM Sans', sans-serif; font-size: 0.88rem;
+    outline: none; transition: border-color 0.2s; width: 100%; height: 40px;
+  }
+  .field input:focus, .field select:focus { border-color: var(--gold-mid); }
+  .field input::placeholder { color: var(--text-faint); }
+  .field select option { background: #26262F; }
+
+  .price-wrap { position: relative; }
+  .price-wrap input { padding-left: 26px; }
+  .price-wrap::before {
+    content: '€'; position: absolute; left: 10px; top: 50%;
+    transform: translateY(-50%); color: var(--text-dim);
+    font-size: 0.85rem; pointer-events: none;
+  }
+
+  .btn-add {
+    background: var(--gold); color: #14141A; border: none;
+    border-radius: 7px; padding: 0 20px;
+    font-family: 'DM Sans', sans-serif; font-size: 0.82rem;
+    font-weight: 600; letter-spacing: 0.05em; cursor: pointer;
+    white-space: nowrap; transition: opacity 0.2s, transform 0.1s;
+    height: 40px; flex-shrink: 0;
+  }
+  .btn-add:hover { opacity: 0.85; }
+  .btn-add:active { transform: scale(0.97); }
+
+  /* ── SECTION HEADERS ───────────────────────────── */
+  .section-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px; margin-top: 4px;
+  }
+  .section-title {
+    font-size: 0.68rem; font-weight: 600; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--text-dim);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-count {
+    background: var(--surface2); border-radius: 20px;
+    padding: 2px 8px; font-size: 0.65rem; color: var(--text-faint);
+  }
+  .section-total { font-family: 'DM Mono', monospace; font-size: 0.82rem; color: var(--gold); }
+
+  /* ── TAGS ──────────────────────────────────────── */
+  .tag {
+    display: inline-flex; align-items: center;
+    padding: 2px 8px; border-radius: 20px;
+    font-size: 0.62rem; font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase; flex-shrink: 0;
+  }
+  .tag-regular    { background: var(--gold-dim);   color: var(--gold);   border: 1px solid var(--gold-mid); }
+  .tag-longterm   { background: var(--blue-dim);   color: var(--blue);   border: 1px solid var(--blue-mid); }
+  .tag-maintenance{ background: var(--purple-dim); color: var(--purple); border: 1px solid var(--purple-mid); }
+
+  /* ── WISH ITEMS ────────────────────────────────── */
+  .wish-item {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; margin-bottom: 8px;
+    transition: border-color 0.2s; overflow: hidden;
+  }
+  .wish-item:hover { border-color: var(--gold-mid); }
+  .wish-item-top {
+    padding: 12px 14px;
+    display: flex; align-items: center; gap: 12px; cursor: pointer;
+  }
+  .item-name { flex: 1; font-size: 0.9rem; }
+  .item-price { font-family: 'DM Mono', monospace; font-size: 0.85rem; color: var(--gold); white-space: nowrap; }
+
+  .score-badge {
+    display: flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--surface); border: 1px solid var(--border);
+    font-family: 'DM Mono', monospace; font-size: 0.72rem;
+    color: var(--text-dim); flex-shrink: 0;
+    transition: all 0.2s;
+  }
+  .score-badge.scored { background: var(--gold-dim); border-color: var(--gold-mid); color: var(--gold); }
+  .score-badge.high   { background: var(--green-dim); border-color: var(--green-mid); color: var(--green); }
+
+  .btn-del {
+    background: none; border: none; color: var(--text-faint);
+    cursor: pointer; font-size: 1rem; padding: 2px 4px;
+    border-radius: 4px; transition: color 0.15s; flex-shrink: 0;
+  }
+  .btn-del:hover { color: var(--red); }
+
+  .expand-btn {
+    background: none; border: none; color: var(--text-faint);
+    cursor: pointer; font-size: 0.75rem; padding: 2px 4px;
+    border-radius: 4px; transition: color 0.15s, transform 0.2s; flex-shrink: 0;
+  }
+  .expand-btn:hover { color: var(--text-dim); }
+  .expand-btn.open { transform: rotate(180deg); }
+
+  .wish-item-sliders {
+    display: none; padding: 0 14px 14px;
+    border-top: 1px solid var(--border);
+  }
+  .wish-item-sliders.open { display: block; }
+
+  .slider-row { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+  .slider-row label {
+    font-size: 0.68rem; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text-dim);
+    width: 46px; flex-shrink: 0;
+  }
+  .dot-picker { display: flex; gap: 6px; }
+  .dot {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 1px solid var(--border); background: var(--surface);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 0.72rem; font-family: 'DM Mono', monospace; color: var(--text-faint);
+    transition: all 0.15s; flex-shrink: 0;
+  }
+  .dot:hover { border-color: var(--text-dim); color: var(--text-dim); }
+  .dot-need.active-1 { background: rgba(224,117,117,0.2); border-color: var(--red); color: var(--red); }
+  .dot-need.active-2 { background: rgba(224,150,90,0.2); border-color: #E0965A; color: #E0965A; }
+  .dot-need.active-3 { background: rgba(224,185,76,0.2); border-color: #E0B94C; color: #E0B94C; }
+  .dot-need.active-4 { background: rgba(201,168,76,0.2); border-color: var(--gold); color: var(--gold); }
+  .dot-need.active-5 { background: rgba(109,184,136,0.2); border-color: var(--green); color: var(--green); }
+  .dot-want.active-1 { background: rgba(126,184,212,0.15); border-color: var(--blue); color: var(--blue); }
+  .dot-want.active-2 { background: rgba(150,184,212,0.15); border-color: #96B8D4; color: #96B8D4; }
+  .dot-want.active-3 { background: rgba(168,143,212,0.15); border-color: var(--purple); color: var(--purple); }
+  .dot-want.active-4 { background: rgba(201,130,150,0.15); border-color: #C98296; color: #C98296; }
+  .dot-want.active-5 { background: rgba(201,168,76,0.2); border-color: var(--gold); color: var(--gold); }
+  .slider-val { font-family: 'DM Mono', monospace; font-size: 0.72rem; color: var(--text-dim); width: 14px; text-align: right; flex-shrink: 0; }
+  .slider-hint { font-size: 0.68rem; color: var(--text-faint); margin-top: 10px; line-height: 1.5; font-style: italic; }
+
+  .empty-state {
+    text-align: center; padding: 32px 16px; color: var(--text-faint);
+    font-size: 0.82rem; border: 1px dashed var(--border); border-radius: var(--radius);
+  }
+  .group-divider { margin-top: 24px; }
+
+  /* ── BUDGET CONTROLS ───────────────────────────── */
+  .controls-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+  .mode-toggle {
+    display: flex; gap: 2px; background: var(--surface2);
+    border-radius: 8px; padding: 3px; flex-shrink: 0;
+  }
+  .mode-btn {
+    padding: 7px 14px; background: transparent; border: none; border-radius: 6px;
+    color: var(--text-dim); font-family: 'DM Sans', sans-serif;
+    font-size: 0.75rem; font-weight: 500; letter-spacing: 0.04em;
+    cursor: pointer; transition: all 0.2s; text-transform: uppercase; white-space: nowrap;
+  }
+  .mode-btn.active { background: var(--gold-dim); color: var(--gold); border: 1px solid var(--gold-mid); }
+
+  .toggle-row {
+    display: flex; align-items: center; gap: 10px;
+    margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);
+  }
+  .toggle-label { font-size: 0.75rem; color: var(--text-dim); letter-spacing: 0.04em; flex: 1; }
+  .switch { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider-sw {
+    position: absolute; inset: 0;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 20px; cursor: pointer; transition: 0.2s;
+  }
+  .slider-sw::before {
+    content: ''; position: absolute;
+    width: 12px; height: 12px; left: 3px; top: 3px;
+    background: var(--text-faint); border-radius: 50%; transition: 0.2s;
+  }
+  .switch input:checked + .slider-sw { background: var(--gold-dim); border-color: var(--gold-mid); }
+  .switch input:checked + .slider-sw::before { transform: translateX(16px); background: var(--gold); }
+
+  /* ── ARC ───────────────────────────────────────── */
+  .arc-container { display: flex; flex-direction: column; align-items: center; margin: 16px 0 20px; }
+  .arc-wrap { position: relative; width: 180px; height: 100px; overflow: hidden; }
+  .arc-svg { width: 180px; height: 180px; position: absolute; top: 0; left: 0; }
+  .arc-label { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); text-align: center; white-space: nowrap; }
+  .arc-pct { font-family: 'DM Serif Display', serif; font-size: 1.9rem; color: var(--gold); display: block; line-height: 1; }
+  .arc-sub { font-size: 0.68rem; color: var(--text-dim); letter-spacing: 0.07em; text-transform: uppercase; display: block; margin-top: 2px; }
+
+  /* ── PRIORITY ITEMS ────────────────────────────── */
+  .priority-item {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 14px; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 10px;
+    cursor: grab; user-select: none;
+    transition: border-color 0.2s, background 0.2s, opacity 0.2s;
+  }
+  .priority-item.in-budget { border-color: var(--green-mid); background: var(--green-dim); }
+  .priority-item.dragging { opacity: 0.35; border-color: var(--gold); }
+  .priority-item.drag-over { border-color: var(--gold); background: var(--gold-dim); }
+  .priority-item.faded { opacity: 0.38; }
+  .drag-handle { color: var(--text-faint); font-size: 0.85rem; cursor: grab; flex-shrink: 0; }
+  .rank-badge { font-family: 'DM Mono', monospace; font-size: 0.68rem; color: var(--text-faint); width: 16px; flex-shrink: 0; text-align: right; }
+  .priority-item.in-budget .rank-badge { color: var(--green); }
+  .item-name-p { flex: 1; font-size: 0.88rem; }
+  .item-months { font-size: 0.72rem; color: var(--text-dim); white-space: nowrap; flex-shrink: 0; }
+  .item-months.current { color: var(--green); font-weight: 600; }
+  .score-pill {
+    font-family: 'DM Mono', monospace; font-size: 0.68rem;
+    color: var(--text-faint); background: var(--surface);
+    border: 1px solid var(--border); border-radius: 20px;
+    padding: 2px 8px; white-space: nowrap; flex-shrink: 0;
+  }
+  .score-pill.has-score { color: var(--gold); border-color: var(--gold-mid); background: var(--gold-dim); }
+
+  .mode-note {
+    font-size: 0.75rem; color: var(--text-dim); margin-bottom: 14px;
+    padding: 10px 14px; background: var(--gold-dim);
+    border: 1px solid var(--gold-mid); border-radius: 7px; line-height: 1.5;
+  }
+  .score-legend {
+    display: flex; gap: 16px; flex-wrap: wrap;
+    padding: 12px 14px; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 8px;
+    margin-bottom: 16px; font-size: 0.7rem; color: var(--text-dim); line-height: 1.6;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ── TIMELINE ──────────────────────────────────── */
+  .timeline-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px 22px; margin-top: 20px;
+  }
+  .timeline-title { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 14px; }
+  .timeline-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.83rem; }
+  .timeline-row:last-of-type { border-bottom: none; }
+  .tl-label { color: var(--text-dim); }
+  .tl-val { font-family: 'DM Mono', monospace; }
+  .tl-val.hi { color: var(--gold); }
+  .month-track { height: 4px; background: var(--surface2); border-radius: 2px; margin-top: 16px; overflow: hidden; }
+  .month-fill { height: 100%; background: linear-gradient(90deg, var(--gold), #E8C87A); border-radius: 2px; transition: width 0.5s ease; }
+  .month-labels { display: flex; justify-content: space-between; margin-top: 5px; font-size: 0.68rem; color: var(--text-faint); font-family: 'DM Mono', monospace; }
+
+  .side-item {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 10px;
+    font-size: 0.86rem; opacity: 0.75;
+  }
+  .side-item-name { flex: 1; }
+  .side-item-price { font-family: 'DM Mono', monospace; font-size: 0.82rem; color: var(--text-dim); white-space: nowrap; }
+
+  /* ── SETTINGS PANEL ────────────────────────────── */
+  #settings-panel {
+    position: fixed; inset: 0; z-index: 80;
+    background: rgba(20,20,26,0.95);
+    display: flex; align-items: flex-end; justify-content: center;
+    padding: 0;
+  }
+  #settings-panel.hidden { display: none; }
+  .settings-sheet {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px 16px 0 0;
+    padding: 28px 24px 40px;
+    width: 100%; max-width: 560px;
+  }
+  .settings-sheet h3 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.2rem; color: var(--gold);
+    margin-bottom: 20px; font-weight: 400;
+  }
+  .settings-row {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 14px;
+  }
+  .settings-row label { font-size: 0.75rem; color: var(--text-dim); flex: 1; line-height: 1.5; }
+  .btn-danger {
+    background: rgba(224,117,117,0.1); color: var(--red);
+    border: 1px solid rgba(224,117,117,0.3);
+    border-radius: 7px; padding: 8px 16px;
+    font-family: 'DM Sans', sans-serif; font-size: 0.8rem;
+    cursor: pointer; transition: opacity 0.2s; white-space: nowrap;
+  }
+  .btn-danger:hover { opacity: 0.8; }
+  .btn-close-settings {
+    width: 100%; padding: 12px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text-dim);
+    font-family: 'DM Sans', sans-serif; font-size: 0.85rem;
+    cursor: pointer; margin-top: 20px; transition: background 0.2s;
+  }
+  .btn-close-settings:hover { background: var(--border); }
+
+  @media (max-width: 500px) {
+    .add-form { flex-direction: column; }
+    .btn-add { width: 100%; }
+    .controls-row { flex-direction: column; align-items: stretch; }
+    .mode-toggle { width: 100%; }
+    .mode-btn { flex: 1; }
+    .dot { width: 24px; height: 24px; font-size: 0.65rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════ SETUP OVERLAY ══════════ -->
+<div id="setup-overlay">
+  <div class="setup-card">
+    <h2>Connect to GitHub</h2>
+    <p>Your data syncs across all devices via a private GitHub Gist. This is a one-time setup per device.</p>
+
+    <div class="setup-step">
+      <span class="step-num">1</span>
+      Go to <a href="https://github.com/settings/tokens/new" target="_blank">github.com/settings/tokens/new</a>
+    </div>
+    <div class="setup-step">
+      <span class="step-num">2</span>
+      Give it any name (e.g. <code>expense-planner</code>), set expiration to <strong>No expiration</strong>, tick only the <code>gist</code> scope, then click <strong>Generate token</strong>.
+    </div>
+    <div class="setup-step">
+      <span class="step-num">3</span>
+      Copy the token (starts with <code>ghp_</code>) and paste it below.
+    </div>
+
+    <div class="setup-input-row">
+      <input class="setup-input" type="password" id="token-input" placeholder="ghp_••••••••••••••••••••" />
+      <button class="btn-setup" id="btn-connect" onclick="connectGitHub()">Connect</button>
+    </div>
+    <div class="setup-error" id="setup-error"></div>
+  </div>
+</div>
+
+<!-- ══════════ SETTINGS PANEL ══════════ -->
+<div id="settings-panel" class="hidden">
+  <div class="settings-sheet">
+    <h3>Settings</h3>
+    <div class="settings-row">
+      <label>Connected GitHub account<br><span id="settings-user" style="color:var(--text);font-size:0.82rem"></span></label>
+    </div>
+    <div class="settings-row">
+      <label>Gist ID (your data store)<br><span id="settings-gist" style="color:var(--text-faint);font-size:0.72rem;font-family:monospace"></span></label>
+    </div>
+    <div class="settings-row">
+      <label>Disconnect this device and clear local data</label>
+      <button class="btn-danger" onclick="disconnectDevice()">Disconnect</button>
+    </div>
+    <button class="btn-close-settings" onclick="closeSettings()">Close</button>
+  </div>
+</div>
+
+<!-- ══════════ SYNC BAR ══════════ -->
+<div id="sync-bar" style="display:none">
+  <span class="sync-title">Expense Planner</span>
+  <span class="sync-status">
+    <span class="sync-dot" id="sync-dot"></span>
+    <span id="sync-text">—</span>
+  </span>
+  <button class="btn-settings" onclick="openSettings()" title="Settings">⚙</button>
+</div>
+
+<!-- ══════════ MAIN ══════════ -->
+<div class="main-wrap" id="main-wrap" style="display:none">
+
+  <header>
+    <h1>Expense Planner</h1>
+    <p>Wishlist · Priorities · Timeline</p>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('wishlist')">Wishlist</button>
+    <button class="tab-btn" onclick="switchTab('budget')">Budget Planner</button>
+  </div>
+
+  <!-- ── WISHLIST PANEL ── -->
+  <div class="panel active" id="panel-wishlist">
+    <div class="card">
+      <div class="add-form">
+        <div class="field" style="flex:2; min-width:150px">
+          <label>Item</label>
+          <input type="text" id="item-name" placeholder="e.g. New phone" onkeydown="if(event.key==='Enter') addItem()" />
+        </div>
+        <div class="field" style="flex:1; min-width:100px">
+          <label>Price</label>
+          <div class="price-wrap">
+            <input type="number" id="item-price" placeholder="500" min="0" step="0.01" onkeydown="if(event.key==='Enter') addItem()" />
+          </div>
+        </div>
+        <div class="field" style="flex:1; min-width:120px">
+          <label>Category</label>
+          <select id="item-tag">
+            <option value="regular">Regular</option>
+            <option value="longterm">Long-term</option>
+            <option value="maintenance">Maintenance</option>
+          </select>
+        </div>
+        <button class="btn-add" onclick="addItem()">Add</button>
+      </div>
+    </div>
+
+    <div id="group-regular">
+      <div class="section-header">
+        <span class="section-title">Regular <span class="tag tag-regular">Wishlist</span><span class="section-count" id="count-regular">0</span></span>
+        <span class="section-total" id="total-regular">€ 0.00</span>
+      </div>
+      <div id="list-regular"><div class="empty-state">No regular items yet.</div></div>
+    </div>
+
+    <div id="group-longterm" class="group-divider">
+      <div class="section-header">
+        <span class="section-title">Long-term <span class="tag tag-longterm">Aspirational</span><span class="section-count" id="count-longterm">0</span></span>
+        <span class="section-total" id="total-longterm">€ 0.00</span>
+      </div>
+      <div id="list-longterm"><div class="empty-state">No long-term items yet.</div></div>
+    </div>
+
+    <div id="group-maintenance" class="group-divider">
+      <div class="section-header">
+        <span class="section-title">Maintenance <span class="tag tag-maintenance">Recurring</span><span class="section-count" id="count-maintenance">0</span></span>
+        <span class="section-total" id="total-maintenance">€ 0.00</span>
+      </div>
+      <div id="list-maintenance"><div class="empty-state">No maintenance items yet.</div></div>
+    </div>
+  </div>
+
+  <!-- ── BUDGET PANEL ── -->
+  <div class="panel" id="panel-budget">
+    <div class="card">
+      <div class="controls-row">
+        <div class="field" style="flex:1; min-width:130px">
+          <label>Monthly Budget</label>
+          <div class="price-wrap">
+            <input type="number" id="monthly-budget" placeholder="600" min="0" step="1" oninput="onBudgetChange()" />
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
+          <label style="font-size:0.68rem;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:var(--text-dim)">Mode</label>
+          <div class="mode-toggle">
+            <button class="mode-btn active" id="mode-manual" onclick="setMode('manual')">Manual</button>
+            <button class="mode-btn" id="mode-shuffle" onclick="setMode('shuffle')">Value Shuffle</button>
+          </div>
+        </div>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">Focus on Top 5 priorities only</span>
+        <label class="switch">
+          <input type="checkbox" id="top5-toggle" onchange="renderBudget()">
+          <span class="slider-sw"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="arc-container">
+      <div class="arc-wrap">
+        <svg class="arc-svg" viewBox="0 0 180 180">
+          <path d="M 18 90 A 72 72 0 0 1 162 90" fill="none" stroke="#2E2E3A" stroke-width="13" stroke-linecap="round"/>
+          <path d="M 18 90 A 72 72 0 0 1 162 90" fill="none" stroke="#C9A84C" stroke-width="13"
+            stroke-linecap="round" stroke-dasharray="226" stroke-dashoffset="226"
+            id="arc-fill" style="transition: stroke-dashoffset 0.5s ease"/>
+        </svg>
+        <div class="arc-label">
+          <span class="arc-pct" id="arc-pct">—</span>
+          <span class="arc-sub" id="arc-sub">of wishlist / mo</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="mode-note-shuffle" class="mode-note" style="display:none">
+      ✦ Value Shuffle — ranked by Score = (Need × 2) + Want + Price Efficiency. Set Need &amp; Want on each item in the Wishlist tab.
+    </div>
+    <div id="score-legend" class="score-legend" style="display:none">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>High (≥11)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--gold)"></div>Medium (7–10)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--text-faint)"></div>Low (≤6)</div>
+      <div style="color:var(--text-faint);font-style:italic">Score = (Need×2) + Want + Price Efficiency (1–5)</div>
+    </div>
+
+    <div class="section-header">
+      <span class="section-title" id="priority-label">Priority Order</span>
+      <span class="section-total" id="budget-total">€ 0.00</span>
+    </div>
+    <div id="priority-container"><div class="empty-state">Add regular items on the Wishlist tab first.</div></div>
+
+    <div id="budget-longterm-section" class="group-divider" style="display:none">
+      <div class="section-header">
+        <span class="section-title">Long-term <span class="tag tag-longterm">Excluded from math</span></span>
+        <span class="section-total" id="budget-lt-total">€ 0.00</span>
+      </div>
+      <div id="budget-longterm-list"></div>
+    </div>
+
+    <div id="budget-maintenance-section" class="group-divider" style="display:none">
+      <div class="section-header">
+        <span class="section-title">Maintenance <span class="tag tag-maintenance">Excluded from math</span></span>
+        <span class="section-total" id="budget-mt-total">€ 0.00</span>
+      </div>
+      <div id="budget-maintenance-list"></div>
+    </div>
+
+    <div class="timeline-card" id="timeline-card" style="display:none">
+      <div class="timeline-title">Acquisition Timeline</div>
+      <div class="timeline-row"><span class="tl-label">Monthly budget</span><span class="tl-val hi" id="tl-budget">—</span></div>
+      <div class="timeline-row"><span class="tl-label">Items in scope</span><span class="tl-val" id="tl-count">—</span></div>
+      <div class="timeline-row"><span class="tl-label">Total cost</span><span class="tl-val" id="tl-total">—</span></div>
+      <div class="timeline-row"><span class="tl-label">Months to complete</span><span class="tl-val hi" id="tl-months">—</span></div>
+      <div class="timeline-row"><span class="tl-label">Estimated completion</span><span class="tl-val" id="tl-date">—</span></div>
+      <div class="month-track"><div class="month-fill" id="month-fill" style="width:0%"></div></div>
+      <div class="month-labels"><span>Now</span><span id="tl-end-label">—</span></div>
+    </div>
+  </div>
+
+</div><!-- /main-wrap -->
+
+<script>
+// ════════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════════
+let items         = [];
+let priorityOrder = [];
+let currentMode   = 'manual';
+let monthlyBudget = 0;
+let dragSrcIndex  = null;
+
+// GitHub / Gist
+let GH_TOKEN  = '';
+let GH_USER   = '';
+let GIST_ID   = '';
+let syncTimer  = null;
+const GIST_FILENAME = 'expense-planner-data.json';
+
+// ════════════════════════════════════════════════════
+//  GITHUB SETUP
+// ════════════════════════════════════════════════════
+async function connectGitHub() {
+  const token = document.getElementById('token-input').value.trim();
+  if (!token) return;
+  const btn = document.getElementById('btn-connect');
+  const errEl = document.getElementById('setup-error');
+  btn.disabled = true; btn.textContent = 'Connecting…';
+  errEl.style.display = 'none';
+
+  try {
+    // Verify token & get username
+    const userRes = await fetch('https://api.github.com/user', {
+      headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' }
+    });
+    if (!userRes.ok) throw new Error('Invalid token — make sure it has the gist scope.');
+    const user = await userRes.json();
+
+    // Find existing planner gist or create one
+    let gistId = await findPlannerGist(token);
+    if (!gistId) gistId = await createPlannerGist(token);
+
+    // Save to localStorage
+    localStorage.setItem('ep-token', token);
+    localStorage.setItem('ep-user', user.login);
+    localStorage.setItem('ep-gist', gistId);
+
+    GH_TOKEN = token; GH_USER = user.login; GIST_ID = gistId;
+    await loadFromGist();
+    bootApp();
+  } catch(e) {
+    errEl.textContent = e.message;
+    errEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Connect';
+  }
+}
+
+async function findPlannerGist(token) {
+  // Paginate through gists to find our file
+  let page = 1;
+  while (true) {
+    const res = await fetch(`https://api.github.com/gists?per_page=100&page=${page}`, {
+      headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' }
+    });
+    const gists = await res.json();
+    if (!gists.length) break;
+    const found = gists.find(g => g.files && g.files[GIST_FILENAME]);
+    if (found) return found.id;
+    if (gists.length < 100) break;
+    page++;
+  }
+  return null;
+}
+
+async function createPlannerGist(token) {
+  const res = await fetch('https://api.github.com/gists', {
+    method: 'POST',
+    headers: {
+      Authorization: `token ${token}`,
+      Accept: 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      description: 'Expense Planner — personal data store',
+      public: false,
+      files: {
+        [GIST_FILENAME]: {
+          content: JSON.stringify({ items: [], priorityOrder: [], mode: 'manual', budget: 0 })
+        }
+      }
+    })
+  });
+  if (!res.ok) throw new Error('Could not create Gist. Check token permissions.');
+  const gist = await res.json();
+  return gist.id;
+}
+
+// ════════════════════════════════════════════════════
+//  GIST SYNC
+// ════════════════════════════════════════════════════
+async function loadFromGist() {
+  setSyncStatus('saving', 'Loading…');
+  const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+    headers: { Authorization: `token ${GH_TOKEN}`, Accept: 'application/vnd.github.v3+json' }
+  });
+  if (!res.ok) { setSyncStatus('error', 'Load failed'); return; }
+  const gist = await res.json();
+  const raw = gist.files[GIST_FILENAME]?.content;
+  if (raw) {
+    try {
+      const data = JSON.parse(raw);
+      items         = (data.items || []).map(i => ({ need:0, want:0, tag:'regular', ...i }));
+      priorityOrder = data.priorityOrder || [];
+      currentMode   = data.mode || 'manual';
+      monthlyBudget = data.budget || 0;
+    } catch(e) { /* malformed — start fresh */ }
+  }
+  setSyncStatus('saved', 'Synced');
+}
+
+async function saveToGist() {
+  if (!GIST_ID || !GH_TOKEN) return;
+  setSyncStatus('saving', 'Saving…');
+  try {
+    const payload = { items, priorityOrder, mode: currentMode, budget: monthlyBudget };
+    const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `token ${GH_TOKEN}`,
+        Accept: 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        files: { [GIST_FILENAME]: { content: JSON.stringify(payload) } }
+      })
+    });
+    if (!res.ok) throw new Error('Save failed');
+    setSyncStatus('saved', 'Saved');
+  } catch(e) {
+    setSyncStatus('error', 'Sync error');
+  }
+}
+
+// Debounced save — waits 1.2s after last change
+function scheduleSave() {
+  clearTimeout(syncTimer);
+  setSyncStatus('saving', 'Saving…');
+  syncTimer = setTimeout(saveToGist, 1200);
+}
+
+function setSyncStatus(state, text) {
+  const dot  = document.getElementById('sync-dot');
+  const txt  = document.getElementById('sync-text');
+  dot.className = 'sync-dot ' + state;
+  txt.textContent = text;
+}
+
+// ════════════════════════════════════════════════════
+//  BOOT
+// ════════════════════════════════════════════════════
+async function init() {
+  // Try to restore saved credentials
+  const token = localStorage.getItem('ep-token');
+  const user  = localStorage.getItem('ep-user');
+  const gist  = localStorage.getItem('ep-gist');
+
+  if (token && gist) {
+    GH_TOKEN = token; GH_USER = user || ''; GIST_ID = gist;
+    try {
+      await loadFromGist();
+      bootApp();
+    } catch(e) {
+      // Token expired or revoked — show setup again
+      showSetup();
+    }
+  } else {
+    showSetup();
+  }
+}
+
+function showSetup() {
+  document.getElementById('setup-overlay').classList.remove('hidden');
+}
+
+function bootApp() {
+  document.getElementById('setup-overlay').classList.add('hidden');
+  document.getElementById('sync-bar').style.display = 'flex';
+  document.getElementById('main-wrap').style.display = 'block';
+  document.getElementById('settings-user').textContent = '@' + GH_USER;
+  document.getElementById('settings-gist').textContent = GIST_ID;
+
+  // Restore budget input
+  if (monthlyBudget) document.getElementById('monthly-budget').value = monthlyBudget;
+
+  syncOrder();
+  setMode(currentMode);
+  renderWishlist();
+
+  // Register service worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+}
+
+// ════════════════════════════════════════════════════
+//  SETTINGS
+// ════════════════════════════════════════════════════
+function openSettings() {
+  document.getElementById('settings-panel').classList.remove('hidden');
+}
+function closeSettings() {
+  document.getElementById('settings-panel').classList.add('hidden');
+}
+function disconnectDevice() {
+  if (!confirm('Disconnect this device? Your Gist data is kept safe — you can reconnect anytime.')) return;
+  localStorage.removeItem('ep-token');
+  localStorage.removeItem('ep-user');
+  localStorage.removeItem('ep-gist');
+  location.reload();
+}
+
+// ════════════════════════════════════════════════════
+//  DATA HELPERS
+// ════════════════════════════════════════════════════
+function syncOrder() {
+  const ids = items.filter(i => i.tag === 'regular').map(i => i.id);
+  priorityOrder = priorityOrder.filter(id => ids.includes(id));
+  ids.forEach(id => { if (!priorityOrder.includes(id)) priorityOrder.push(id); });
+}
+
+function computeScores(regularItems) {
+  if (!regularItems.length) return {};
+  const prices = regularItems.map(i => i.price).sort((a,b) => a - b);
+  const minP = prices[0], maxP = prices[prices.length-1];
+  const scores = {};
+  regularItems.forEach(item => {
+    const need = item.need || 0, want = item.want || 0;
+    let eff = 3;
+    if (maxP !== minP) eff = 5 - Math.round(((item.price - minP) / (maxP - minP)) * 4);
+    const scored = need > 0 || want > 0;
+    scores[item.id] = { score: scored ? (need * 2) + want + eff : null, eff };
+  });
+  return scores;
+}
+
+function fmt(n) {
+  return '€\u00A0' + n.toLocaleString('fr-FR', { minimumFractionDigits:2, maximumFractionDigits:2 });
+}
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function needHint(v) { return ['','Nice to have','Somewhat useful','Fairly needed','Genuinely needed','Essential'][v]||''; }
+function wantHint(v) { return ['','Mild interest','Decent desire','Really want it','Strongly desire it','Must have it'][v]||''; }
+
+// ════════════════════════════════════════════════════
+//  ADD / DELETE
+// ════════════════════════════════════════════════════
+function addItem() {
+  const nameEl = document.getElementById('item-name');
+  const priceEl = document.getElementById('item-price');
+  const tagEl  = document.getElementById('item-tag');
+  const name   = nameEl.value.trim();
+  const price  = parseFloat(priceEl.value);
+  const tag    = tagEl.value;
+  if (!name || isNaN(price) || price < 0) { nameEl.focus(); return; }
+  items.push({ id: Date.now().toString(), name, price, tag, need:0, want:0 });
+  syncOrder(); scheduleSave();
+  nameEl.value = ''; priceEl.value = ''; nameEl.focus();
+  renderWishlist(); renderBudget();
+}
+
+function deleteItem(id) {
+  items = items.filter(i => i.id !== id);
+  priorityOrder = priorityOrder.filter(x => x !== id);
+  scheduleSave(); renderWishlist(); renderBudget();
+}
+
+function setNeed(id, val) {
+  const item = items.find(i => i.id === id);
+  if (item) { item.need = val; scheduleSave(); renderWishlistItem(id); renderBudget(); }
+}
+function setWant(id, val) {
+  const item = items.find(i => i.id === id);
+  if (item) { item.want = val; scheduleSave(); renderWishlistItem(id); renderBudget(); }
+}
+
+function toggleExpand(id) {
+  const sl  = document.getElementById('sliders-' + id);
+  const btn = document.getElementById('expbtn-' + id);
+  if (sl) { sl.classList.toggle('open'); btn.classList.toggle('open'); }
+}
+
+// ════════════════════════════════════════════════════
+//  RENDER WISHLIST
+// ════════════════════════════════════════════════════
+function buildWishItemHTML(item) {
+  const regularItems = items.filter(i => i.tag === 'regular');
+  const scores = computeScores(regularItems);
+  const sc = item.tag === 'regular' ? scores[item.id] : null;
+  const hasScore = sc && sc.score !== null;
+  const scoreClass = hasScore ? (sc.score >= 11 ? 'high' : 'scored') : '';
+  const scoreLabel = hasScore ? sc.score : '—';
+  const isReg = item.tag === 'regular';
+
+  const needDots = [1,2,3,4,5].map(v => {
+    const active = item.need === v ? ` dot-need active-${v}` : '';
+    return `<div class="dot dot-need${active}" onclick="setNeed('${item.id}',${item.need===v?0:v})">${v}</div>`;
+  }).join('');
+  const wantDots = [1,2,3,4,5].map(v => {
+    const active = item.want === v ? ` dot-want active-${v}` : '';
+    return `<div class="dot dot-want${active}" onclick="setWant('${item.id}',${item.want===v?0:v})">${v}</div>`;
+  }).join('');
+
+  return `
+    <div class="wish-item" id="witem-${item.id}">
+      <div class="wish-item-top" onclick="toggleExpand('${item.id}')">
+        ${isReg ? `<div class="score-badge ${scoreClass}">${scoreLabel}</div>` : ''}
+        <span class="item-name">${esc(item.name)}</span>
+        <span class="item-price">${fmt(item.price)}</span>
+        ${isReg ? `<button class="expand-btn${(item.need||item.want)?' open':''}" id="expbtn-${item.id}" onclick="event.stopPropagation();toggleExpand('${item.id}')" title="Set Need & Want">▾</button>` : ''}
+        <button class="btn-del" onclick="event.stopPropagation();deleteItem('${item.id}')" title="Remove">✕</button>
+      </div>
+      ${isReg ? `
+      <div class="wish-item-sliders${(item.need||item.want)?' open':''}" id="sliders-${item.id}">
+        <div class="slider-row">
+          <label>Need</label>
+          <div class="dot-picker">${needDots}</div>
+          <span class="slider-val">${item.need||''}</span>
+        </div>
+        <div class="slider-row">
+          <label>Want</label>
+          <div class="dot-picker">${wantDots}</div>
+          <span class="slider-val">${item.want||''}</span>
+        </div>
+        <div class="slider-hint">
+          ${item.need?`Need: <strong>${needHint(item.need)}</strong>`:'Need: not set'}
+          &nbsp;·&nbsp;
+          ${item.want?`Want: <strong>${wantHint(item.want)}</strong>`:'Want: not set'}
+        </div>
+      </div>` : ''}
+    </div>`;
+}
+
+function renderWishlistItem(id) {
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  const el = document.getElementById('witem-' + id);
+  if (!el) return;
+  const wasOpen = !!el.querySelector('.wish-item-sliders.open');
+  el.outerHTML = buildWishItemHTML(item);
+  if (wasOpen) {
+    const n = document.getElementById('witem-' + id);
+    if (n) {
+      n.querySelector('.wish-item-sliders')?.classList.add('open');
+      n.querySelector('.expand-btn')?.classList.add('open');
+    }
+  }
+}
+
+function renderWishlist() {
+  ['regular','longterm','maintenance'].forEach(tag => {
+    const tagItems = items.filter(i => i.tag === tag);
+    const total    = tagItems.reduce((s,i) => s+i.price, 0);
+    document.getElementById('count-'+tag).textContent = tagItems.length;
+    document.getElementById('total-'+tag).textContent = fmt(total);
+    const list = document.getElementById('list-'+tag);
+    list.innerHTML = tagItems.length
+      ? tagItems.map(buildWishItemHTML).join('')
+      : `<div class="empty-state">No ${tag} items yet.</div>`;
+  });
+}
+
+// ════════════════════════════════════════════════════
+//  BUDGET
+// ════════════════════════════════════════════════════
+function setMode(mode) {
+  currentMode = mode;
+  document.getElementById('mode-manual').classList.toggle('active', mode==='manual');
+  document.getElementById('mode-shuffle').classList.toggle('active', mode==='shuffle');
+  renderBudget();
+}
+
+function onBudgetChange() {
+  monthlyBudget = parseFloat(document.getElementById('monthly-budget').value) || 0;
+  scheduleSave();
+  renderBudget();
+}
+
+function renderBudget() {
+  const budget    = monthlyBudget;
+  const top5only  = document.getElementById('top5-toggle').checked;
+  const isShuffle = currentMode === 'shuffle';
+
+  document.getElementById('mode-note-shuffle').style.display = isShuffle ? 'block' : 'none';
+  document.getElementById('score-legend').style.display      = isShuffle ? 'flex'  : 'none';
+  document.getElementById('priority-label').textContent      = isShuffle ? 'Value Shuffle Order' : 'Priority Order';
+
+  syncOrder();
+  const regularItems = priorityOrder.map(id => items.find(i => i.id===id)).filter(Boolean);
+  const scoreMap = computeScores(regularItems);
+
+  let displayItems = [...regularItems];
+  if (isShuffle) {
+    displayItems.sort((a,b) => {
+      const sa = scoreMap[a.id]?.score ?? -1;
+      const sb = scoreMap[b.id]?.score ?? -1;
+      if (sa===-1 && sb===-1) return a.price - b.price;
+      if (sa===-1) return 1;
+      if (sb===-1) return -1;
+      return sb - sa;
+    });
+  }
+
+  const scopedItems = top5only ? displayItems.slice(0,5) : displayItems;
+  const total = scopedItems.reduce((s,i) => s+i.price, 0);
+  document.getElementById('budget-total').textContent = fmt(total);
+
+  const arcLen = 226;
+  const pct = (budget>0 && total>0) ? Math.min(budget/total,1) : 0;
+  document.getElementById('arc-fill').style.strokeDashoffset = arcLen - pct*arcLen;
+  document.getElementById('arc-pct').textContent = (budget>0 && total>0) ? Math.round(pct*100)+'%' : '—';
+  document.getElementById('arc-sub').textContent = top5only ? 'of top 5 / mo' : 'of wishlist / mo';
+
+  const container = document.getElementById('priority-container');
+  if (!scopedItems.length) {
+    container.innerHTML = '<div class="empty-state">Add regular items on the Wishlist tab first.</div>';
+    document.getElementById('timeline-card').style.display = 'none';
+  } else {
+    let running = 0;
+    const inBudget = new Set();
+    for (const item of scopedItems) {
+      if (running + item.price <= budget) { running += item.price; inBudget.add(item.id); }
+      else break;
+    }
+    const fadedIds = new Set(top5only ? displayItems.slice(5).map(i=>i.id) : []);
+    const shownItems = isShuffle ? scopedItems : displayItems;
+
+    container.innerHTML = shownItems.map((item,idx) => {
+      const inB     = inBudget.has(item.id);
+      const dimmed  = top5only && fadedIds.has(item.id);
+      const mo      = getMonthLabel(scopedItems, item.id, budget);
+      const sc      = scoreMap[item.id];
+      const hasScore= sc && sc.score !== null;
+      const pillCls = hasScore ? 'score-pill has-score' : 'score-pill';
+      const pillTxt = isShuffle ? (hasScore ? `★ ${sc.score}` : 'unscored') : '';
+      return `
+        <div class="priority-item${inB?' in-budget':''}${dimmed?' faded':''}"
+          draggable="${!isShuffle}"
+          data-index="${idx}"
+          ondragstart="${!isShuffle?`dragStart(event,${idx})`:''}"
+          ondragover="${!isShuffle?`dragOver(event,${idx})`:'event.preventDefault()'}"
+          ondragend="${!isShuffle?'dragEnd()':''}"
+          ondrop="${!isShuffle?`drop(event,${idx})`:''}">
+          <span class="drag-handle" style="${isShuffle?'opacity:0.15;cursor:default':''}">⠿</span>
+          <span class="rank-badge">${idx+1}</span>
+          <span class="item-name-p">${esc(item.name)}</span>
+          ${isShuffle?`<span class="${pillCls}">${pillTxt}</span>`:''}
+          <span class="item-price">${fmt(item.price)}</span>
+          <span class="item-months${inB?' current':''}">${mo}</span>
+        </div>`;
+    }).join('');
+
+    renderTimeline(scopedItems, budget);
+  }
+
+  // Long-term sidebar
+  const ltItems = items.filter(i=>i.tag==='longterm');
+  const ltSec   = document.getElementById('budget-longterm-section');
+  if (ltItems.length) {
+    ltSec.style.display = 'block';
+    document.getElementById('budget-lt-total').textContent = fmt(ltItems.reduce((s,i)=>s+i.price,0));
+    document.getElementById('budget-longterm-list').innerHTML = ltItems.map(i=>`
+      <div class="side-item">
+        <span class="side-item-name">${esc(i.name)}</span>
+        <span class="tag tag-longterm" style="margin-right:4px">Long-term</span>
+        <span class="side-item-price">${fmt(i.price)}</span>
+      </div>`).join('');
+  } else ltSec.style.display='none';
+
+  // Maintenance sidebar
+  const mtItems = items.filter(i=>i.tag==='maintenance');
+  const mtSec   = document.getElementById('budget-maintenance-section');
+  if (mtItems.length) {
+    mtSec.style.display = 'block';
+    document.getElementById('budget-mt-total').textContent = fmt(mtItems.reduce((s,i)=>s+i.price,0));
+    document.getElementById('budget-maintenance-list').innerHTML = mtItems.map(i=>`
+      <div class="side-item">
+        <span class="side-item-name">${esc(i.name)}</span>
+        <span class="tag tag-maintenance" style="margin-right:4px">Maintenance</span>
+        <span class="side-item-price">${fmt(i.price)}</span>
+      </div>`).join('');
+  } else mtSec.style.display='none';
+}
+
+function getMonthLabel(orderedItems, itemId, budget) {
+  if (!budget || budget<=0) return '';
+  const idx = orderedItems.findIndex(i=>i.id===itemId);
+  if (idx<0) return '—';
+  let cum=0;
+  for (let i=0;i<=idx;i++) cum+=orderedItems[i].price;
+  const m = Math.ceil(cum/budget);
+  return m===1 ? 'this month' : `month ${m}`;
+}
+
+function renderTimeline(scopedItems, budget) {
+  const card = document.getElementById('timeline-card');
+  if (!budget||budget<=0||!scopedItems.length) { card.style.display='none'; return; }
+  card.style.display = 'block';
+  const total  = scopedItems.reduce((s,i)=>s+i.price,0);
+  const months = Math.ceil(total/budget);
+  const now    = new Date();
+  const end    = new Date(now.getFullYear(), now.getMonth()+months, 1);
+  const endStr = end.toLocaleDateString('en-GB', { month:'long', year:'numeric' });
+  document.getElementById('tl-budget').textContent  = fmt(budget)+' / mo';
+  document.getElementById('tl-count').textContent   = scopedItems.length+(scopedItems.length===1?' item':' items');
+  document.getElementById('tl-total').textContent   = fmt(total);
+  document.getElementById('tl-months').textContent  = months===1?'1 month':months+' months';
+  document.getElementById('tl-date').textContent    = endStr;
+  document.getElementById('tl-end-label').textContent = endStr;
+  document.getElementById('month-fill').style.width = Math.min((budget/total)*100,100)+'%';
+}
+
+// ════════════════════════════════════════════════════
+//  DRAG & DROP
+// ════════════════════════════════════════════════════
+function dragStart(e,index) {
+  dragSrcIndex = index;
+  e.currentTarget.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+function dragOver(e,index) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('.priority-item').forEach((el,i) => {
+    el.classList.toggle('drag-over', i===index && index!==dragSrcIndex);
+  });
+}
+function drop(e,targetIndex) {
+  e.preventDefault();
+  if (dragSrcIndex===null||dragSrcIndex===targetIndex) return;
+  syncOrder();
+  const moved = priorityOrder.splice(dragSrcIndex,1)[0];
+  priorityOrder.splice(targetIndex,0,moved);
+  scheduleSave(); renderBudget();
+}
+function dragEnd() {
+  dragSrcIndex = null;
+  document.querySelectorAll('.priority-item').forEach(el=>el.classList.remove('dragging','drag-over'));
+}
+
+// ════════════════════════════════════════════════════
+//  TAB SWITCH
+// ════════════════════════════════════════════════════
+function switchTab(name) {
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  document.querySelectorAll('.tab-btn')[name==='wishlist'?0:1].classList.add('active');
+  if (name==='budget') renderBudget();
+}
+
+// ════════════════════════════════════════════════════
+//  BOOT
+// ════════════════════════════════════════════════════
+init();
+</script>
+</body>
+</html>
