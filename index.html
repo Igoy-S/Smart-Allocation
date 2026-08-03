@@ -155,6 +155,27 @@
   .item-name { flex: 1; font-size: 0.9rem; }
   .item-name.struck { text-decoration: line-through; color: var(--text-dim); }
 
+  /* ── NAME DISPLAY / EDIT ── */
+  .name-display { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; }
+  .item-name { font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item-name.struck { text-decoration: line-through; color: var(--text-dim); }
+  .btn-edit-name {
+    background: none; border: none; color: var(--text-faint); cursor: pointer;
+    font-size: 0.72rem; padding: 2px 4px; border-radius: 4px;
+    transition: color 0.15s; flex-shrink: 0; line-height: 1; opacity: 0;
+  }
+  .wish-item:hover .btn-edit-name,
+  .priority-item:hover .btn-edit-name { opacity: 1; }
+  .btn-edit-name:hover { color: var(--gold); }
+
+  .name-edit-wrap { display: none; align-items: center; gap: 6px; flex: 1; min-width: 0; }
+  .name-edit-wrap.open { display: flex; }
+  .name-edit-input {
+    flex: 1; background: var(--surface); border: 1px solid var(--gold-mid); border-radius: 5px;
+    padding: 4px 10px; color: var(--text); font-family: 'DM Sans', sans-serif;
+    font-size: 0.88rem; outline: none; min-width: 0;
+  }
+
   /* ── PRICE DISPLAY / EDIT ── */
   .price-display { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
   .item-price { font-family: 'DM Mono', monospace; font-size: 0.85rem; color: var(--gold); white-space: nowrap; }
@@ -162,8 +183,10 @@
   .btn-edit-price {
     background: none; border: none; color: var(--text-faint); cursor: pointer;
     font-size: 0.72rem; padding: 2px 5px; border-radius: 4px;
-    transition: color 0.15s; flex-shrink: 0; line-height: 1;
+    transition: color 0.15s; flex-shrink: 0; line-height: 1; opacity: 0;
   }
+  .wish-item:hover .btn-edit-price,
+  .priority-item:hover .btn-edit-price { opacity: 1; }
   .btn-edit-price:hover { color: var(--gold); }
 
   .price-edit-wrap { display: none; align-items: center; gap: 6px; flex-shrink: 0; }
@@ -738,6 +761,31 @@ function toggleExpand(id) {
   if(sl){ sl.classList.toggle('open'); btn.classList.toggle('open'); }
 }
 
+// ── Name editing ──
+function openNameEdit(id) {
+  const item = items.find(i=>i.id===id);
+  if (!item) return;
+  document.getElementById('name-display-'+id).style.display='none';
+  const wrap = document.getElementById('name-edit-'+id);
+  wrap.classList.add('open');
+  const inp = wrap.querySelector('.name-edit-input');
+  inp.value = item.name;
+  inp.focus(); inp.select();
+}
+function cancelNameEdit(id) {
+  document.getElementById('name-display-'+id).style.display='flex';
+  document.getElementById('name-edit-'+id).classList.remove('open');
+}
+function confirmNameEdit(id) {
+  const inp = document.getElementById('name-edit-'+id).querySelector('.name-edit-input');
+  const val = inp.value.trim();
+  if (!val) { inp.focus(); return; }
+  const item = items.find(i=>i.id===id);
+  if (item) { item.name=val; scheduleSave(); }
+  renderWishlistItem(id);
+  renderBudget();
+}
+
 // ── Price editing ──
 function openPriceEdit(id) {
   const item = items.find(i=>i.id===id);
@@ -804,7 +852,19 @@ function buildWishItemHTML(item) {
     <div class="wish-item" id="witem-${item.id}">
       <div class="wish-item-top" onclick="toggleExpand('${item.id}')">
         ${isRegular?`<div class="score-badge ${scoreClass}">${hasScore?sc.score:'—'}</div>`:''}
-        <span class="item-name">${esc(item.name)}</span>
+
+        <!-- Name display / edit -->
+        <div class="name-display" id="name-display-${item.id}">
+          <span class="item-name">${esc(item.name)}</span>
+          <button class="btn-edit-name" onclick="event.stopPropagation();openNameEdit('${item.id}')" title="Edit name">✎</button>
+        </div>
+        <div class="name-edit-wrap" id="name-edit-${item.id}">
+          <input class="name-edit-input" type="text" value="${esc(item.name)}"
+            onkeydown="if(event.key==='Enter')confirmNameEdit('${item.id}');if(event.key==='Escape')cancelNameEdit('${item.id}')"
+            onclick="event.stopPropagation()"/>
+          <button class="btn-confirm" onclick="event.stopPropagation();confirmNameEdit('${item.id}')">✓</button>
+          <button class="btn-cancel-edit" onclick="event.stopPropagation();cancelNameEdit('${item.id}')">✕</button>
+        </div>
 
         <!-- Price display / edit -->
         <div class="price-display" id="price-display-${item.id}">
@@ -970,10 +1030,21 @@ function renderBudget() {
           ondrop="${!isShuffle?`drop(event,${idx})`:''}">
           <span class="drag-handle" style="${isShuffle?'opacity:0.15;cursor:default':''}">⠿</span>
           <span class="rank-badge">${idx+1}</span>
-          <span class="item-name-p">${esc(item.name)}</span>
+          <div class="name-display" id="name-display-${item.id}" style="flex:1;min-width:0">
+            <span class="item-name-p" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(item.name)}</span>
+            <button class="btn-edit-name" onclick="event.stopPropagation();openNameEdit('${item.id}')" title="Edit name">✎</button>
+          </div>
+          <div class="name-edit-wrap" id="name-edit-${item.id}" style="flex:1;min-width:0">
+            <input class="name-edit-input" type="text" value="${esc(item.name)}"
+              onkeydown="if(event.key==='Enter')confirmNameEdit('${item.id}');if(event.key==='Escape')cancelNameEdit('${item.id}')"
+              onclick="event.stopPropagation()"/>
+            <button class="btn-confirm" onclick="event.stopPropagation();confirmNameEdit('${item.id}')">✓</button>
+            <button class="btn-cancel-edit" onclick="event.stopPropagation();cancelNameEdit('${item.id}')">✕</button>
+          </div>
           ${isShuffle?`<span class="score-pill${hasScore?' has-score':''}">${hasScore?'★ '+sc.score:'unscored'}</span>`:''}
           <span class="item-price">${fmt(item.price)}</span>
           <span class="item-months${inB?' current':''}">${mo}</span>
+          <button class="btn-purchased" onclick="markPurchased('${item.id}')" title="Mark as bought" style="cursor:pointer">✓</button>
         </div>`;
     }).join('');
     renderTimeline(scopedItems,budget);
