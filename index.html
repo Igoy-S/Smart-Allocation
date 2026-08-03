@@ -150,19 +150,19 @@
   .wish-item.purchased-item { opacity: 0.6; }
   .wish-item.purchased-item:hover { border-color: var(--green-mid); opacity: 0.85; }
 
-  .wish-item-top { padding: 12px 14px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  .wish-item-top { padding: 12px 14px; display: flex; align-items: center; gap: 10px; cursor: pointer; overflow: hidden; }
 
   .item-name { flex: 1; font-size: 0.9rem; }
   .item-name.struck { text-decoration: line-through; color: var(--text-dim); }
 
   /* ── NAME DISPLAY / EDIT ── */
-  .name-display { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; }
-  .item-name { font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .name-display { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; overflow: hidden; }
+  .item-name { font-size: 0.9rem; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .item-name.struck { text-decoration: line-through; color: var(--text-dim); }
   .btn-edit-name {
     background: none; border: none; color: var(--text-faint); cursor: pointer;
     font-size: 0.72rem; padding: 2px 4px; border-radius: 4px;
-    transition: color 0.15s; flex-shrink: 0; line-height: 1; opacity: 0;
+    transition: color 0.15s; flex-shrink: 0; line-height: 1; opacity: 0; transition: opacity 0.15s;
   }
   .wish-item:hover .btn-edit-name,
   .priority-item:hover .btn-edit-name { opacity: 1; }
@@ -171,9 +171,9 @@
   .name-edit-wrap { display: none; align-items: center; gap: 6px; flex: 1; min-width: 0; }
   .name-edit-wrap.open { display: flex; }
   .name-edit-input {
-    flex: 1; background: var(--surface); border: 1px solid var(--gold-mid); border-radius: 5px;
+    flex: 1; min-width: 0; background: var(--surface); border: 1px solid var(--gold-mid); border-radius: 5px;
     padding: 4px 10px; color: var(--text); font-family: 'DM Sans', sans-serif;
-    font-size: 0.88rem; outline: none; min-width: 0;
+    font-size: 0.88rem; outline: none;
   }
 
   /* ── PRICE DISPLAY / EDIT ── */
@@ -280,7 +280,7 @@
   .drag-handle { color: var(--text-faint); font-size: 0.85rem; cursor: grab; flex-shrink: 0; }
   .rank-badge  { font-family: 'DM Mono', monospace; font-size: 0.68rem; color: var(--text-faint); width: 16px; flex-shrink: 0; text-align: right; }
   .priority-item.in-budget .rank-badge { color: var(--green); }
-  .item-name-p { flex: 1; font-size: 0.88rem; }
+  .item-name-p { flex: 1; font-size: 0.88rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .item-months { font-size: 0.72rem; color: var(--text-dim); white-space: nowrap; flex-shrink: 0; }
   .item-months.current { color: var(--green); font-weight: 600; }
   .score-pill { font-family: 'DM Mono', monospace; font-size: 0.68rem; color: var(--text-faint); background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 2px 8px; white-space: nowrap; flex-shrink: 0; }
@@ -1030,11 +1030,11 @@ function renderBudget() {
           ondrop="${!isShuffle?`drop(event,${idx})`:''}">
           <span class="drag-handle" style="${isShuffle?'opacity:0.15;cursor:default':''}">⠿</span>
           <span class="rank-badge">${idx+1}</span>
-          <div class="name-display" id="name-display-${item.id}" style="flex:1;min-width:0">
-            <span class="item-name-p" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(item.name)}</span>
+          <div class="name-display" id="name-display-${item.id}">
+            <span class="item-name-p">${esc(item.name)}</span>
             <button class="btn-edit-name" onclick="event.stopPropagation();openNameEdit('${item.id}')" title="Edit name">✎</button>
           </div>
-          <div class="name-edit-wrap" id="name-edit-${item.id}" style="flex:1;min-width:0">
+          <div class="name-edit-wrap" id="name-edit-${item.id}">
             <input class="name-edit-input" type="text" value="${esc(item.name)}"
               onkeydown="if(event.key==='Enter')confirmNameEdit('${item.id}');if(event.key==='Escape')cancelNameEdit('${item.id}')"
               onclick="event.stopPropagation()"/>
