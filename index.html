@@ -293,6 +293,7 @@
   <div class="tabs">
     <button class="tab-btn active" onclick="switchTab('wishlist')">Wishlist</button>
     <button class="tab-btn" onclick="switchTab('budget')">Priority</button>
+    <button class="tab-btn" onclick="switchTab('bought')">Bought</button>
     <button class="tab-btn" onclick="switchTab('settings')">Settings</button>
   </div>
 
@@ -331,14 +332,6 @@
       <div id="list-maintenance"><div class="empty-state">No maintenance items yet.</div></div>
     </div>
 
-    <div class="group-divider" id="purchased-section" style="display:none">
-      <div class="section-header">
-        <span class="section-title">Purchased <span class="tag tag-purchased">This month</span><span class="section-count" id="count-purchased">0</span></span>
-        <span class="section-total" id="total-purchased">€ 0.00</span>
-      </div>
-      <div id="list-purchased"></div>
-      <button class="clear-old-btn" id="clear-old-btn" onclick="clearOldPurchased()" style="display:none">Clear items purchased over 7 days ago</button>
-    </div>
   </div>
 
   <!-- PRIORITY TAB -->
@@ -391,6 +384,16 @@
       <div class="section-header"><span class="section-title">Maintenance <span class="tag tag-maintenance">Excluded</span></span><span class="section-total" id="budget-mt-total">€ 0.00</span></div>
       <div id="budget-maintenance-list"></div>
     </div>
+  </div>
+
+  <!-- BOUGHT TAB -->
+  <div class="panel" id="panel-bought">
+    <div class="section-header">
+      <span class="section-title">Purchased <span class="tag tag-purchased">This month</span><span class="section-count" id="count-purchased">0</span></span>
+      <span class="section-total" id="total-purchased">€ 0.00</span>
+    </div>
+    <div id="list-purchased"><div class="empty-state">Nothing bought yet this month.</div></div>
+    <button class="clear-old-btn" id="clear-old-btn" onclick="clearOldPurchased()" style="display:none">Clear items purchased over 7 days ago</button>
   </div>
 
   <!-- SETTINGS TAB -->
@@ -845,16 +848,16 @@ function renderWishlist(){
     const list=document.getElementById('list-'+tag);
     list.innerHTML=ti.length?ti.map(buildWishItemHTML).join(''):`<div class="empty-state">No ${tag} items yet.</div>`;
   });
-  const pur=items.filter(i=>i.purchased);
-  const sec=document.getElementById('purchased-section');
-  if(pur.length){
-    sec.style.display='block';
-    document.getElementById('count-purchased').textContent=pur.length;
-    document.getElementById('total-purchased').textContent=fmt(pur.reduce((s,i)=>s+i.price,0));
-    document.getElementById('list-purchased').innerHTML=pur.sort((a,b)=>(b.purchasedAt||0)-(a.purchasedAt||0)).map(buildWishItemHTML).join('');
-    const hasOld=pur.some(i=>i.purchasedAt&&Date.now()-i.purchasedAt>=7*864e5);
-    document.getElementById('clear-old-btn').style.display=hasOld?'block':'none';
-  } else { sec.style.display='none'; }
+}
+
+function renderBought(){
+  const pur=items.filter(i=>i.purchased).sort((a,b)=>(b.purchasedAt||0)-(a.purchasedAt||0));
+  document.getElementById('count-purchased').textContent=pur.length;
+  document.getElementById('total-purchased').textContent=fmt(pur.reduce((s,i)=>s+i.price,0));
+  const list=document.getElementById('list-purchased');
+  list.innerHTML=pur.length?pur.map(buildWishItemHTML).join(''):'<div class="empty-state">Nothing bought yet this month.</div>';
+  const hasOld=pur.some(i=>i.purchasedAt&&Date.now()-i.purchasedAt>=7*864e5);
+  document.getElementById('clear-old-btn').style.display=hasOld?'block':'none';
 }
 
 // ═══════════════════════════════
@@ -936,7 +939,7 @@ function renderBudget(){
 // ═══════════════════════════════
 //  RENDER ALL
 // ═══════════════════════════════
-function renderAll(){ updateMonthStats(); renderWishlist(); renderBudget(); }
+function renderAll(){ updateMonthStats(); renderWishlist(); renderBudget(); renderBought(); }
 
 // ═══════════════════════════════
 //  DRAG & DROP
@@ -957,8 +960,9 @@ function switchTab(name){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('panel-'+name).classList.add('active');
-  document.querySelectorAll('.tab-btn')[{wishlist:0,budget:1,settings:2}[name]].classList.add('active');
+  document.querySelectorAll('.tab-btn')[{wishlist:0,budget:1,bought:2,settings:3}[name]].classList.add('active');
   if(name==='budget') renderBudget();
+  if(name==='bought') renderBought();
   if(name==='settings') document.getElementById('settings-gist-url').textContent=gistId?`gist.github.com/${gistId.slice(0,8)}…`:'—';
 }
 
